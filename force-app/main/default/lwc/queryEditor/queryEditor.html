@@ -1,0 +1,81 @@
+<template>
+    <lightning-card title="Query Creator" icon-name="utility:edit">
+        <div class="slds-p-around_medium">
+
+            <lightning-input
+                label="Name"
+                value={name}
+                data-field="name"
+                onchange={handleChange}
+                required>
+            </lightning-input>
+
+            <lightning-input
+                label="Description"
+                value={description}
+                data-field="description"
+                class="slds-m-top_medium"
+                onchange={handleChange}
+                required>
+            </lightning-input>
+
+            <lightning-combobox
+                label="SObject API Name"
+                value={sObjectApiName}
+                options={sObjectOptions}
+                data-field="sObjectApiName"
+                onchange={handleSObjectChange}
+                placeholder="Select an object..."
+                disabled={isLoadingObjects}
+                required>
+            </lightning-combobox>
+
+            <lightning-input
+                label="SOQL"
+                value={soql}
+                data-field="soql"
+                class="slds-m-top_medium"
+                onchange={handleChange}
+                required>
+            </lightning-input>
+
+            <!-- Validation status -->
+            <div class="slds-m-top_medium">
+                <template if:true={validationError}>
+                    <p class="slds-text-color_error">{validationError}</p>
+                </template>
+                <template if:true={isValidated}>
+                    <p class="slds-text-color_success">SOQL is valid!</p>
+                </template>
+            </div>
+
+            <!-- Buttons -->
+            <div class="slds-m-top_medium slds-grid slds-grid_align-end slds-gutters_small">
+                <lightning-button
+                    label="Validate SOQL"
+                    onclick={handleValidate}
+                    disabled={isValidating}
+                    class="slds-m-right_small">
+                </lightning-button>
+
+                <div class="slds-grid slds-grid_align-end slds-gutters_medium">
+            <div class="slds-col slds-grow-none">
+                <lightning-button
+                    label="Clear Form"
+                    icon-name="utility:clear"
+                    onclick={resetForm}>
+                </lightning-button>
+            </div>
+            <div class="slds-col slds-grow-none">
+                <lightning-button
+                    label="Save Query"
+                    variant="brand"
+                    onclick={handleSave}
+                    disabled={isSaveDisabled}>
+                </lightning-button>
+            </div>
+            </div>
+            </div>
+            </div>
+    </lightning-card>
+</template>

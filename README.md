@@ -81,3 +81,25 @@ Strong solutions will demonstrate:
 
 Build something you would be proud to ship internally.
 
+____________________________________________________________________________________-
+
+# How to:
+
+## Information
+
+### Seed Data
+
+Sample records were inserted using the Salesforce Data Import Wizard.
+
+### Steps to re-insert seed data:
+1. Open the provided `salesforce_useful_queries.xlsx` file
+2. In Salesforce go to **Setup → Data Import Wizard → Launch Wizard**
+3. Select **Custom Objects → UsefulQuery__c**
+4. Select **Add new records**
+5. Choose **Upload from file** and select the Excel file
+6. Map columns:
+   - Name → Name
+   - SObjectName → SObjectAPIName__c
+   - Query → SOQLField__c
+   - Description → DescriptionField__c
+7. Click **Start Import**

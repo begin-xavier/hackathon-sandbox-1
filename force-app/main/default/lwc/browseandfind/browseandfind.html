@@ -1,0 +1,463 @@
+<template>
+    <lightning-card title="Query Library" icon-name="utility:search">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+
+            <!-- Search & Filter Bar -->
+            <div class="slds-grid slds-gutters slds-wrap slds-m-bottom_medium">
+
+                <!-- Search Input -->
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12">
+                    <lightning-input
+                        type="search"
+                        label="Search"
+                        placeholder="Name or description..."
+                        value={searchTerm}
+                        onchange={handleSearchChange}>
+                    </lightning-input>
+                </div>
+
+                <!-- SObject Filter -->
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12">
+                    <lightning-combobox
+                        label="Filter by SObject"
+                        placeholder="All SObjects"
+                        value={selectedSObject}
+                        options={sobjectOptions}
+                        onchange={handleSObjectChange}>
+                    </lightning-combobox>
+                </div>
+
+                <!-- Rows per page -->
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12">
+                    <lightning-combobox
+                        label="Rows per page"
+                        value="10"
+                        options={pageSizeOptions}
+                        onchange={handlePageSizeChange}>
+                    </lightning-combobox>
+                </div>
+
+                <!-- Clear Filters -->
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-align-bottom">
+                    <template if:true={hasActiveFilters}>
+                        <div class="slds-m-top_large">
+                            <lightning-button
+                                label="Clear Filters"
+                                icon-name="utility:clear"
+                                onclick={clearFilters}>
+                            </lightning-button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Results Summary -->
+            <div class="slds-m-bottom_x-small slds-text-body_small slds-text-color_weak">
+                <template if:true={isLoading}>
+                    Loading queries...
+                </template>
+                <template if:false={isLoading}>
+                    Showing {displayedCount} of {totalCount}
+                    <template if:true={hasActiveFilters}> (filtered)</template>
+                </template>
+            </div>
+
+            <!-- View Toggle -->
+            <div class="slds-m-bottom_small">
+                <lightning-button
+                    label={toggleViewLabel}
+                    icon-name={toggleViewIcon}
+                    onclick={handleToggleView}>
+                </lightning-button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <template if:true={isLoading}>
+                <div class="slds-is-relative slds-m-top_large" style="height:6rem;">
+                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Error State -->
+            <template if:true={hasError}>
+                <div class="slds-box slds-theme_error slds-m-bottom_medium">
+                    <p>{errorMessage}</p>
+                    <lightning-button
+                        label="Retry"
+                        variant="base"
+                        onclick={loadQueries}
+                        class="slds-m-top_small">
+                    </lightning-button>
+                </div>
+            </template>
+
+            <!-- Data Table -->
+            <template if:false={isLoading}>
+                <template if:false={hasError}>
+                    <template if:true={hasRows}>
+
+                        <!-- flat table view -->
+                        <template if:false={isGroupedView}>
+                            <lightning-datatable
+                                key-field="Id"
+                                data={displayedRows}
+                                columns={columns}
+                                sorted-by={sortedBy}
+                                sorted-direction={sortedDirection}
+                                onsort={handleSort}
+                                onrowaction={handleRowAction}
+                                hide-checkbox-column>
+                            </lightning-datatable>
+                        </template>
+
+                        <!-- grouped view -->
+                        <template if:true={isGroupedView}>
+                            <template for:each={groupedRecords} for:item="group">
+                                <div key={group.sObject} class="slds-m-bottom_medium">
+                                    <div class="slds-box slds-theme_shade slds-p-around_small slds-m-bottom_x-small">
+                                        <strong>{group.sObject}</strong>
+                                        <span class="slds-m-left_small slds-text-color_weak">
+                                            ({group.records.length} queries)
+                                        </span>
+                                    </div>
+                                    <lightning-datatable
+                                        key-field="Id"
+                                        data={group.records}
+                                        columns={columns}
+                                        onrowaction={handleRowAction}
+                                        hide-checkbox-column>
+                                    </lightning-datatable>
+                                </div>
+                            </template>
+                        </template>
+
+                        <!-- Pagination -->
+                        <template if:true={showPagination}>
+                            <div class="slds-grid slds-grid_align-center slds-grid_vertical-align-center slds-m-top_small">
+                                <lightning-button-icon
+                                    icon-name="utility:chevronleft"
+                                    alternative-text="Previous"
+                                    onclick={goToPrevPage}
+                                    disabled={isFirstPage}>
+                                </lightning-button-icon>
+                                <span class="slds-text-body_small slds-m-horizontal_small">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <lightning-button-icon
+                                    icon-name="utility:chevronright"
+                                    alternative-text="Next"
+                                    onclick={goToNextPage}
+                                    disabled={isLastPage}>
+                                </lightning-button-icon>
+                            </div>
+                        </template>
+
+                    </template>
+
+                    <!-- Empty State -->
+                    <template if:false={hasRows}>
+                        <div class="slds-align_absolute-center slds-m-top_large">
+                            <div class="slds-text-align_center">
+                                <lightning-icon
+                                    icon-name="utility:database"
+                                    size="large">
+                                </lightning-icon>
+                                <h3 class="slds-text-heading_small slds-m-top_small">No Queries Found</h3>
+                                <p class="slds-text-body_regular slds-text-color_weak slds-m-top_x-small">
+                                    <template if:true={hasActiveFilters}>
+                                        Try adjusting your search or filter criteria.
+                                    </template>
+                                    <template if:false={hasActiveFilters}>
+                                        No saved queries exist yet.
+                                    </template>
+                                </p>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+
+    <!-- SOQL Detail Modal -->
+    <template if:true={isModalOpen}>
+        <section
+            role="dialog"
+            tabindex="-1"
+            aria-modal="true"
+            aria-label="Query Detail"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+
+                <header class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        size="large"
+                        class="slds-modal__close"
+                        onclick={closeModal}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title">{selectedRecord.Name}</h2>
+                    <p class="slds-text-body_small slds-m-top_x-small">{selectedRecord.SObjectAPIName__c}</p>
+                </header>
+
+                <div class="slds-modal__content slds-p-around_medium">
+
+                    <!-- Description -->
+                    <template if:true={selectedRecord.DescriptionField__c}>
+                        <div class="slds-m-bottom_medium">
+                            <p class="slds-text-title_caps slds-m-bottom_x-small">Description</p>
+                            <p>{selectedRecord.DescriptionField__c}</p>
+                        </div>
+                    </template>
+
+                    <!-- SOQL Body -->
+                    <div class="slds-m-bottom_medium">
+                        <p class="slds-text-title_caps slds-m-bottom_x-small">SOQL</p>
+                        <template if:true={isLoadingSoql}>
+                            <div class="slds-is-relative" style="height:4rem;">
+                                <lightning-spinner alternative-text="Loading SOQL" size="small"></lightning-spinner>
+                            </div>
+                        </template>
+                        <template if:false={isLoadingSoql}>
+                            <div class="slds-box slds-theme_shade">
+                                <pre style="white-space: pre-wrap; word-break: break-word; margin: 0;">{selectedRecord.SOQLField__c}</pre>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Inline Preview Results -->
+                    <template if:true={isPreviewOpen}>
+                        <div class="slds-m-bottom_medium">
+                            <p class="slds-text-title_caps slds-m-bottom_x-small">Preview Results (first 5 rows)</p>
+                            <template if:true={isPreviewLoading}>
+                                <div class="slds-is-relative" style="height:4rem;">
+                                    <lightning-spinner alternative-text="Loading preview" size="small">
+                                    </lightning-spinner>
+                                </div>
+                            </template>
+                            <template if:true={previewError}>
+                                <p class="slds-text-color_error">{previewError}</p>
+                            </template>
+                            <template if:true={hasPreviewRows}>
+                                <lightning-datatable
+                                    key-field="_rowIndex"
+                                    data={previewRows}
+                                    columns={previewColumns}
+                                    hide-checkbox-column>
+                                </lightning-datatable>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Validation Result -->
+                    <template if:true={showValidation}>
+                        <div class="slds-m-bottom_medium">
+                            <div class="slds-box slds-p-around_small">
+                                <div class="slds-grid slds-grid_vertical-align-center">
+                                    <lightning-icon
+                                        icon-name={validationIcon}
+                                        size="small"
+                                        class="slds-m-right_x-small">
+                                    </lightning-icon>
+                                    <p class="slds-text-body_regular">{validationMessage}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Validation Spinner -->
+                    <template if:true={isValidating}>
+                        <div class="slds-is-relative slds-m-bottom_medium" style="height:3rem;">
+                            <lightning-spinner alternative-text="Validating" size="small"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <!-- Delete Confirmation -->
+                    <template if:true={showDeleteConfirm}>
+                        <div class="slds-box slds-theme_warning slds-m-bottom_medium">
+                            <p class="slds-text-body_regular">
+                                Are you sure you want to delete <strong>{selectedRecord.Name}</strong>? This cannot be undone.
+                            </p>
+                            <div class="slds-m-top_small">
+                                <lightning-button
+                                    label="Yes, Delete"
+                                    variant="destructive"
+                                    disabled={isDeleting}
+                                    onclick={handleDeleteConfirm}
+                                    class="slds-m-right_small">
+                                </lightning-button>
+                                <lightning-button
+                                    label="Cancel"
+                                    variant="neutral"
+                                    onclick={handleDeleteCancel}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Last Modified -->
+                    <template if:true={selectedRecord.LastModifiedDate}>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                            Last modified: {formattedLastModified}
+                        </p>
+                    </template>
+                </div>
+
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Copy SOQL"
+                        icon-name="utility:copy"
+                        onclick={copySoql}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Preview Results"
+                        icon-name="utility:preview"
+                        onclick={handlePreview}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Edit"
+                        icon-name="utility:edit"
+                        variant="neutral"
+                        onclick={handleEdit}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Delete"
+                        icon-name="utility:delete"
+                        variant="destructive-text"
+                        disabled={isDeleteDisabled}
+                        onclick={handleDeleteClick}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Close"
+                        variant="neutral"
+                        onclick={closeModal}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <!-- Edit Modal -->
+    <template if:true={isEditModalOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true"
+                 class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+
+                <header class="slds-modal__header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        size="large"
+                        class="slds-modal__close"
+                        onclick={handleEditCancel}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title">Edit Query</h2>
+                </header>
+
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-input
+                        label="Name"
+                        value={editRecord.Name}
+                        data-field="Name"
+                        onchange={handleEditFieldChange}
+                        required>
+                    </lightning-input>
+                    <lightning-textarea
+                        label="Description"
+                        value={editRecord.DescriptionField__c}
+                        data-field="DescriptionField__c"
+                        class="slds-m-top_medium"
+                        onchange={handleEditFieldChange}
+                        style="--lwc-heightTextarea: 100px;"
+                        required>
+                    </lightning-textarea>
+                    <lightning-input
+                        label="SObject API Name"
+                        value={editRecord.SObjectAPIName__c}
+                        data-field="SObjectAPIName__c"
+                        class="slds-m-top_medium"
+                        onchange={handleEditFieldChange}
+                        required>
+                    </lightning-input>
+                    <lightning-textarea
+                        label="SOQL Query"
+                        value={editRecord.SOQLField__c}
+                        data-field="SOQLField__c"
+                        class="slds-m-top_medium"
+                        onchange={handleEditFieldChange}
+                        style="--lwc-heightTextarea: 200px;"
+                        required>
+                    </lightning-textarea>
+                    <div class="slds-m-top_medium">
+                        <template if:true={editValidationError}>
+                            <p class="slds-text-color_error">{editValidationError}</p>
+                        </template>
+                        <template if:true={editIsValidated}>
+                            <p class="slds-text-color_success">SOQL is valid!</p>
+                        </template>
+                        <template if:true={showDeleteConfirm}>
+    <div class="slds-box slds-theme_warning slds-m-top_medium">
+        <p class="slds-text-body_regular">
+            Are you sure you want to delete <strong>{selectedRecord.Name}</strong>? This cannot be undone.
+        </p>
+        <div class="slds-m-top_small">
+            <lightning-button
+                label="Yes, Delete"
+                variant="destructive"
+                disabled={isDeleting}
+                onclick={handleDeleteConfirm}
+                class="slds-m-right_small">
+            </lightning-button>
+            <lightning-button
+                label="Cancel"
+                variant="neutral"
+                onclick={handleDeleteCancel}>
+            </lightning-button>
+        </div>
+    </div>
+</template>
+                    </div>
+                </div>
+
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Cancel"
+                        onclick={handleEditCancel}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Delete"
+                        icon-name="utility:delete"
+                        variant="destructive-text"
+                        disabled={isDeleteDisabled}
+                        onclick={handleDeleteClick}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Validate SOQL"
+                        icon-name="utility:check"
+                        variant="neutral"
+                        onclick={handleEditValidate}
+                        disabled={editIsValidating}
+                        class="slds-m-right_small">
+                    </lightning-button>
+                    <lightning-button
+                        label="Save"
+                        variant="brand"
+                        onclick={handleEditSave}
+                        disabled={isEditSaveDisabled}>
+                    </lightning-button>
+                </footer>
+
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+</template>
