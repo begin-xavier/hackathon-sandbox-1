@@ -12,7 +12,7 @@ Click [here](https://scribehow.com/viewer/Open_Agentforce_Vibes_IDE__fUjVOEdJTXa
 
 The full problem statement is located at:
 
-- `docs/CHALLENGE.md`
+- `docs/CHALLENGE.md'
 
 The official Word document (source of truth) is linked at the top of that file.
 
